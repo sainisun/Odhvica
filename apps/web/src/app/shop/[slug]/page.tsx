@@ -3,7 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { StorefrontHeader } from "@/components/storefront-header";
-import { VariantPicker } from "@/components/variant-picker";
+import { ProductPurchasePanel } from "@/components/product-purchase-panel";
 import { findPublishedProduct } from "@/lib/catalogue/repository";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -34,10 +34,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <div className="grid grid-cols-[110px_1fr] gap-5 border-b border-[var(--line)] py-4 text-sm"><span className="font-semibold">Lead time</span><span className="text-[var(--ink-muted)]">{product.leadTime}</span></div>
               <div className="grid grid-cols-[110px_1fr] gap-5 py-4 text-sm"><span className="font-semibold">Care</span><span className="text-[var(--ink-muted)]">{product.care}</span></div>
             </div>
-            <VariantPicker variants={product.variantOptions} basePrice={product.price} />
-            <div className="mt-6 rounded-xl bg-[#f0e6d7] p-4"><p className="text-xs font-bold tracking-[0.13em] text-[#89551a] uppercase">Made with you in mind</p><p className="mt-2 text-sm leading-6 text-[#755a35]">{product.customisation}</p></div>
-            <button type="button" className="mt-7 w-full rounded-full bg-[var(--foreground)] px-5 py-4 text-xs font-bold tracking-[0.15em] text-white uppercase transition hover:bg-[var(--accent)]">Add to bag — checkout next phase</button>
-            <p className="mt-3 text-center text-xs text-[var(--ink-muted)]">Cart and payment activation follows the provider-gated checkout phase.</p>
+            <ProductPurchasePanel product={{ id: product.id, slug: product.slug, title: product.title, image: product.image, basePrice: product.price, variants: product.variantOptions, customisation: product.customisation }} />
           </div>
         </section>
       </div>

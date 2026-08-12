@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useCart } from "@/components/cart-provider";
 
 export function StorefrontHeader() {
+  const { count } = useCart();
   return (
     <header className="border-b border-[var(--line)] bg-[color:var(--background)]/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
@@ -15,7 +19,7 @@ export function StorefrontHeader() {
         </nav>
         <div className="flex items-center gap-4 text-xs font-semibold tracking-[0.12em] uppercase">
           <span className="hidden text-[var(--ink-muted)] sm:inline">India / INR</span>
-          <Link className="border-b border-[var(--foreground)] pb-1 transition hover:border-[var(--accent)] hover:text-[var(--accent)]" href="/shop">Bag 0</Link>
+          <Link className="border-b border-[var(--foreground)] pb-1 transition hover:border-[var(--accent)] hover:text-[var(--accent)]" href="/cart">Bag {count}</Link>
         </div>
       </div>
     </header>

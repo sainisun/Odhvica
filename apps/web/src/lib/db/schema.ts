@@ -22,6 +22,15 @@ export const inventoryModeEnum = pgEnum("inventory_mode", ["tracked", "one_of_a_
 export const inventoryMovementEnum = pgEnum("inventory_movement_type", ["initial", "adjustment", "reservation", "release", "sale", "return", "restock", "damage"]);
 export const customisationFieldTypeEnum = pgEnum("customisation_field_type", ["short_text", "long_text", "select", "measurement", "file", "gift_message"]);
 export const mediaKindEnum = pgEnum("media_kind", ["image", "video"]);
+export const cartStatusEnum = pgEnum("cart_status", ["active", "checkout_started", "abandoned", "expired", "converted"]);
+export const checkoutStatusEnum = pgEnum("checkout_status", ["started", "awaiting_payment", "payment_processing", "completed", "failed", "expired"]);
+export const paymentProviderEnum = pgEnum("payment_provider", ["razorpay", "stripe", "paypal"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["not_required", "pending", "authorised", "paid", "failed", "cancelled", "partially_refunded", "refunded", "disputed"]);
+export const orderStatusEnum = pgEnum("order_status", ["draft", "pending_confirmation", "confirmed", "cancelled", "completed", "archived"]);
+export const fulfilmentStatusEnum = pgEnum("fulfilment_status", ["unfulfilled", "review_required", "in_production", "ready_to_ship", "partially_fulfilled", "fulfilled", "shipped", "delivered", "returned"]);
+export const postPurchaseStatusEnum = pgEnum("post_purchase_status", ["none", "cancellation_requested", "return_requested", "exchange_requested", "refund_under_review", "resolved"]);
+export const promotionTypeEnum = pgEnum("promotion_type", ["percentage", "fixed_amount", "free_shipping"]);
+export const returnStatusEnum = pgEnum("return_status", ["requested", "approved", "received", "rejected", "resolved"]);
 
 // Better Auth-compatible identity tables. These stay intentionally separate from
 // commerce data so customer identities and staff authorisation can evolve safely.
@@ -335,6 +344,206 @@ export const inventoryMovements = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("inventory_movement_item_idx").on(table.inventoryItemId), index("inventory_movement_actor_idx").on(table.actorUserId)],
+);
+
+export const customerAddresses = pgTable(
+  "customer_address",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    label: varchar("label", { length: 80 }),
+    recipientName: text("recipient_name").notNull(),
+    phone: varchar("phone", { length: 32 }).notNull(),
+    line1: text("line_1").notNull(),
+    line2: text("line_2"),
+    city: varchar("city", { length: 120 }).notNull(),
+    region: varchar("region", { length: 120 }),
+    postalCode: varchar("postal_code", { length: 32 }).notNull(),
+    countryCode: varchar("country_code", { length: 2 }).notNull(),
+    taxId: varchar("tax_id", { length: 32 }),
+    defaultShipping: boolean("default_shipping").notNull().default(false),
+    defaultBilling: boolean("default_billing").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("customer_address_user_idx").on(table.userId), index("customer_address_country_idx").on(table.countryCode)],
+);
+
+export const carts = pgTable(
+  "cart",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    sessionToken: varchar("session_token", { length: 160 }).unique(),
+    email: varchar("email", { length: 320 }),
+    currency: varchar("currency", { length: 3 }).notNull().default("INR"),
+    deliveryCountry: varchar("delivery_country", { length: 2 }),
+    status: cartStatusEnum("status").notNull().default("active"),
+    promotionCode: varchar("promotion_code", { length: 80 }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("cart_user_idx").on(table.userId), index("cart_status_idx").on(table.status)],
+);
+
+export const cartItems = pgTable(
+  "cart_item",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    cartId: uuid("cart_id").notNull().references(() => carts.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id, { onDelete: "restrict" }),
+    quantity: integer("quantity").notNull(),
+    customisation: jsonb("customisation").notNull().default({}),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("cart_item_quantity_positive", sql`${table.quantity} > 0`), index("cart_item_cart_idx").on(table.cartId), index("cart_item_variant_idx").on(table.variantId)],
+);
+
+export const promotions = pgTable(
+  "promotion",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: varchar("code", { length: 80 }).notNull().unique(),
+    type: promotionTypeEnum("type").notNull(),
+    value: numeric("value", { precision: 12, scale: 2 }).notNull().default("0"),
+    minimumSubtotal: numeric("minimum_subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
+    currency: varchar("currency", { length: 3 }),
+    active: boolean("active").notNull().default(true),
+    stackable: boolean("stackable").notNull().default(false),
+    usageLimit: integer("usage_limit"),
+    usageCount: integer("usage_count").notNull().default(0),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("promotion_value_nonnegative", sql`${table.value} >= 0`), index("promotion_active_idx").on(table.active)],
+);
+
+export const checkoutAttempts = pgTable(
+  "checkout_attempt",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    cartId: uuid("cart_id").notNull().references(() => carts.id, { onDelete: "restrict" }),
+    idempotencyKey: varchar("idempotency_key", { length: 128 }).notNull().unique(),
+    status: checkoutStatusEnum("status").notNull().default("started"),
+    deliveryAddress: jsonb("delivery_address").notNull(),
+    billingAddress: jsonb("billing_address"),
+    shippingMethod: jsonb("shipping_method").notNull(),
+    pricingSnapshot: jsonb("pricing_snapshot").notNull(),
+    routingSnapshot: jsonb("routing_snapshot").notNull(),
+    selectedProvider: paymentProviderEnum("selected_provider"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("checkout_attempt_cart_idx").on(table.cartId), index("checkout_attempt_status_idx").on(table.status)],
+);
+
+export const orders = pgTable(
+  "order",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderNumber: varchar("order_number", { length: 40 }).notNull().unique(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    checkoutAttemptId: uuid("checkout_attempt_id").unique().references(() => checkoutAttempts.id, { onDelete: "set null" }),
+    email: varchar("email", { length: 320 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    orderStatus: orderStatusEnum("order_status").notNull().default("pending_confirmation"),
+    paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
+    fulfilmentStatus: fulfilmentStatusEnum("fulfilment_status").notNull().default("unfulfilled"),
+    postPurchaseStatus: postPurchaseStatusEnum("post_purchase_status").notNull().default("none"),
+    subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
+    discountTotal: numeric("discount_total", { precision: 12, scale: 2 }).notNull().default("0"),
+    shippingTotal: numeric("shipping_total", { precision: 12, scale: 2 }).notNull().default("0"),
+    taxTotal: numeric("tax_total", { precision: 12, scale: 2 }).notNull().default("0"),
+    grandTotal: numeric("grand_total", { precision: 12, scale: 2 }).notNull(),
+    taxSnapshot: jsonb("tax_snapshot").notNull().default({}),
+    deliveryAddress: jsonb("delivery_address").notNull(),
+    billingAddress: jsonb("billing_address"),
+    shippingSnapshot: jsonb("shipping_snapshot").notNull(),
+    promotionSnapshot: jsonb("promotion_snapshot").notNull().default({}),
+    notes: text("notes"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("order_total_nonnegative", sql`${table.grandTotal} >= 0`), index("order_user_idx").on(table.userId), index("order_status_idx").on(table.orderStatus), index("order_payment_status_idx").on(table.paymentStatus)],
+);
+
+export const orderItems = pgTable(
+  "order_item",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+    productSnapshot: jsonb("product_snapshot").notNull(),
+    customisationSnapshot: jsonb("customisation_snapshot").notNull().default({}),
+    quantity: integer("quantity").notNull(),
+    unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull(),
+    discountTotal: numeric("discount_total", { precision: 12, scale: 2 }).notNull().default("0"),
+    taxSnapshot: jsonb("tax_snapshot").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("order_item_quantity_positive", sql`${table.quantity} > 0`), index("order_item_order_idx").on(table.orderId)],
+);
+
+export const payments = pgTable(
+  "payment",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    checkoutAttemptId: uuid("checkout_attempt_id").references(() => checkoutAttempts.id, { onDelete: "set null" }),
+    provider: paymentProviderEnum("provider").notNull(),
+    status: paymentStatusEnum("status").notNull().default("pending"),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    providerPaymentId: varchar("provider_payment_id", { length: 180 }),
+    providerReference: varchar("provider_reference", { length: 180 }),
+    idempotencyKey: varchar("idempotency_key", { length: 128 }).notNull().unique(),
+    providerPayload: jsonb("provider_payload").notNull().default({}),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("payment_amount_nonnegative", sql`${table.amount} >= 0`), index("payment_order_idx").on(table.orderId), index("payment_status_idx").on(table.status)],
+);
+
+export const fulfilmentEvents = pgTable(
+  "fulfilment_event",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    status: fulfilmentStatusEnum("status").notNull(),
+    trackingNumber: varchar("tracking_number", { length: 180 }),
+    carrier: varchar("carrier", { length: 120 }),
+    note: text("note"),
+    actorUserId: text("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("fulfilment_event_order_idx").on(table.orderId)],
+);
+
+export const returnRequests = pgTable(
+  "return_request",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    orderItemId: uuid("order_item_id").references(() => orderItems.id, { onDelete: "set null" }),
+    type: postPurchaseStatusEnum("type").notNull(),
+    status: returnStatusEnum("status").notNull().default("requested"),
+    reason: text("reason").notNull(),
+    customerNote: text("customer_note"),
+    resolutionNote: text("resolution_note"),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [index("return_request_order_idx").on(table.orderId), index("return_request_status_idx").on(table.status)],
 );
 
 export const authSchema = {
