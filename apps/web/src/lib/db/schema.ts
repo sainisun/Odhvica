@@ -32,6 +32,11 @@ export const postPurchaseStatusEnum = pgEnum("post_purchase_status", ["none", "c
 export const promotionTypeEnum = pgEnum("promotion_type", ["percentage", "fixed_amount", "free_shipping"]);
 export const returnStatusEnum = pgEnum("return_status", ["requested", "approved", "received", "rejected", "resolved"]);
 export const refundStatusEnum = pgEnum("refund_status", ["requested", "approved", "processing", "completed", "failed", "cancelled"]);
+export const notificationChannelEnum = pgEnum("notification_channel", ["email"]);
+export const notificationClassEnum = pgEnum("notification_class", ["transactional", "operational", "marketing"]);
+export const notificationEventEnum = pgEnum("notification_event", ["order_confirmed", "payment_failed", "fulfilment_updated", "refund_approved", "staff_alert"]);
+export const notificationStatusEnum = pgEnum("notification_status", ["queued", "sandbox_delivered", "failed", "suppressed"]);
+export const notificationAttemptOutcomeEnum = pgEnum("notification_attempt_outcome", ["sandbox_delivered", "failed", "suppressed"]);
 
 // Better Auth-compatible identity tables. These stay intentionally separate from
 // commerce data so customer identities and staff authorisation can evolve safely.
@@ -569,6 +574,57 @@ export const refunds = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [check("refund_amount_positive", sql`${table.amount} > 0`), index("refund_order_idx").on(table.orderId), index("refund_payment_idx").on(table.paymentId), index("refund_status_idx").on(table.status)],
+);
+
+export const notificationPreferences = pgTable(
+  "notification_preference",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    email: varchar("email", { length: 320 }).notNull(),
+    operationalEmail: boolean("operational_email").notNull().default(true),
+    marketingEmail: boolean("marketing_email").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("notification_preference_user_idx").on(table.userId), index("notification_preference_email_idx").on(table.email)],
+);
+
+export const notifications = pgTable(
+  "notification",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    channel: notificationChannelEnum("channel").notNull().default("email"),
+    deliveryClass: notificationClassEnum("delivery_class").notNull(),
+    event: notificationEventEnum("event").notNull(),
+    status: notificationStatusEnum("status").notNull().default("queued"),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    recipientEmail: varchar("recipient_email", { length: 320 }).notNull(),
+    maskedRecipient: varchar("masked_recipient", { length: 320 }).notNull(),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+    refundId: uuid("refund_id").references(() => refunds.id, { onDelete: "set null" }),
+    idempotencyKey: varchar("idempotency_key", { length: 128 }).notNull().unique(),
+    payloadSnapshot: jsonb("payload_snapshot").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("notification_status_idx").on(table.status), index("notification_order_idx").on(table.orderId), index("notification_recipient_idx").on(table.recipientEmail)],
+);
+
+export const notificationDeliveryAttempts = pgTable(
+  "notification_delivery_attempt",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    notificationId: uuid("notification_id").notNull().references(() => notifications.id, { onDelete: "cascade" }),
+    outcome: notificationAttemptOutcomeEnum("outcome").notNull(),
+    provider: varchar("provider", { length: 48 }).notNull().default("sandbox"),
+    providerMessageId: varchar("provider_message_id", { length: 180 }),
+    maskedRecipient: varchar("masked_recipient", { length: 320 }).notNull(),
+    errorCode: varchar("error_code", { length: 80 }),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("notification_delivery_notification_idx").on(table.notificationId)],
 );
 
 export const authSchema = {
