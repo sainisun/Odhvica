@@ -2,7 +2,7 @@
 
 ## Delivered foundation
 
-The implementation now contains an explicit relational model for customer addresses, carts, cart items, promotions, checkout attempts, orders, order items, payments, fulfilment events and return requests. Migration `0003_strange_plazm.sql` must be applied only to the isolated PostgreSQL environment after Phase 0 provider and tax configuration is approved.
+The implementation now contains an explicit relational model for customer addresses, carts, cart items, promotions, checkout attempts, orders, order items, payments, fulfilment events, return requests and immutable refund approvals. Migrations `0003_strange_plazm.sql` and `0004_dapper_bromley.sql` must be applied only to the isolated PostgreSQL environment after Phase 0 provider and tax configuration is approved.
 
 The public UI exposes a browser-persisted bag, address capture, order summary and payment-route preview. It deliberately does **not** collect payment-card data or initiate provider payments before the client store has configured verified merchant accounts, shipping/tax rules, and the PostgreSQL runtime. The browser bag is a presentation bridge; server-side `cart`, `cart_item` and `checkout_attempt` records are the authoritative runtime model when database configuration is enabled.
 
@@ -21,8 +21,10 @@ India delivery with INR is eligible for Razorpay only when Razorpay is enabled. 
 
 ## Order lifecycle boundary
 
-Order, payment, fulfilment and post-purchase states are separate. `state-machine.ts` rejects impossible transitions, while the protected `/admin/orders` workspace is reserved for authenticated staff. The visible workspace remains empty until verified checkouts create persisted orders.
+Order, payment, fulfilment and post-purchase states are separate. `state-machine.ts` rejects impossible transitions, while protected operations persist allowed order and fulfilment transitions, return/exchange requests, refund approvals and audit events. Refund approvals require the `refunds:approve` permission plus a fresh second-factor challenge; their idempotency key ensures a retry cannot create a second approval. The protected `/admin/orders` workspace is reserved for authenticated staff, but remains unpopulated until verified checkouts create persisted orders.
+
+PGlite-backed integration tests cover fulfilment and order-state persistence, return and exchange requests, refund approval idempotency, audit side effects, permission boundaries and second-factor enforcement. Provider execution is intentionally not simulated: no real refund is attempted until the store-owned payment-provider adapter has verified credentials and webhook/reconciliation policy.
 
 ## Remaining activation work
 
-Live Razorpay, Stripe and PayPal adapter calls, webhook signature verification, refunds, courier/tracking APIs, GST calculation/invoice generation, customer accounts and actual production database/object-storage configuration are intentionally deferred until the client’s business/provider credentials and policy inputs are available. No payment secret or customer payment data is committed to the repository.
+Live Razorpay, Stripe and PayPal adapter calls, webhook signature verification, provider-side refund execution/reconciliation, courier/tracking APIs, GST calculation/invoice generation, customer accounts and actual production database/object-storage configuration are intentionally deferred until the client’s business/provider credentials and policy inputs are available. No payment secret or customer payment data is committed to the repository.

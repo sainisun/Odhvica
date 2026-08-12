@@ -31,6 +31,7 @@ export const fulfilmentStatusEnum = pgEnum("fulfilment_status", ["unfulfilled", 
 export const postPurchaseStatusEnum = pgEnum("post_purchase_status", ["none", "cancellation_requested", "return_requested", "exchange_requested", "refund_under_review", "resolved"]);
 export const promotionTypeEnum = pgEnum("promotion_type", ["percentage", "fixed_amount", "free_shipping"]);
 export const returnStatusEnum = pgEnum("return_status", ["requested", "approved", "received", "rejected", "resolved"]);
+export const refundStatusEnum = pgEnum("refund_status", ["requested", "approved", "processing", "completed", "failed", "cancelled"]);
 
 // Better Auth-compatible identity tables. These stay intentionally separate from
 // commerce data so customer identities and staff authorisation can evolve safely.
@@ -544,6 +545,30 @@ export const returnRequests = pgTable(
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   },
   (table) => [index("return_request_order_idx").on(table.orderId), index("return_request_status_idx").on(table.status)],
+);
+
+export const refunds = pgTable(
+  "refund",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    paymentId: uuid("payment_id").notNull().references(() => payments.id, { onDelete: "restrict" }),
+    status: refundStatusEnum("status").notNull().default("requested"),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull(),
+    reason: text("reason").notNull(),
+    idempotencyKey: varchar("idempotency_key", { length: 128 }).notNull().unique(),
+    providerRefundId: varchar("provider_refund_id", { length: 180 }),
+    providerPayload: jsonb("provider_payload").notNull().default({}),
+    requestSnapshot: jsonb("request_snapshot").notNull().default({}),
+    requestedByUserId: text("requested_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    approvedByUserId: text("approved_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("refund_amount_positive", sql`${table.amount} > 0`), index("refund_order_idx").on(table.orderId), index("refund_payment_idx").on(table.paymentId), index("refund_status_idx").on(table.status)],
 );
 
 export const authSchema = {
