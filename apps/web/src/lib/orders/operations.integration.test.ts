@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import type { getDatabase } from "@/lib/db";
 import { auditEvents, fulfilmentEvents, orders, payments, refunds, returnRequests } from "@/lib/db/schema";
 import { approveRefund, requestPostPurchase, transitionFulfilment, transitionOrderStatus } from "./operations";
+import { prepareSandboxRefundHandoff } from "@/lib/payments/refunds";
 
 type OrdersDatabase = ReturnType<typeof getDatabase>;
 
@@ -66,6 +67,15 @@ describe("persisted order operations", () => {
     const repeated = await approveRefund(input, { db: serviceDb, access: { userId: "manager-1", role: "manager", hasFreshStepUp: true } });
     expect(first.reused).toBe(false); expect(repeated.reused).toBe(true); expect(await db.select().from(refunds)).toHaveLength(1);
     expect((await db.select().from(auditEvents))[0]?.action).toBe("refund.approved");
+  });
+
+  it("prepares a repeatable no-network sandbox refund handoff only from an approved refund", async () => {
+    const { db, serviceDb, client } = await createOrdersDatabase(); clients.push(client); const { orderId, paymentId } = await seedOrder(db);
+    const { refund } = await approveRefund({ orderId, paymentId, amount: 1200, currency: "INR", reason: "Approved return received.", idempotencyKey: "approved-sandbox-refund-handoff-001" }, { db: serviceDb, access: { userId: "manager-1", role: "manager", hasFreshStepUp: true } });
+    const first = await prepareSandboxRefundHandoff(refund.id, { db: serviceDb });
+    const repeated = await prepareSandboxRefundHandoff(refund.id, { db: serviceDb });
+    expect(first).toEqual(repeated); expect(first.externalUrl).toBeNull(); expect(first.mode).toBe("sandbox");
+    expect((await db.select().from(refunds))[0]?.status).toBe("approved");
   });
 
   it("rejects refund approval until the staff member completes a fresh second-factor challenge", async () => {
