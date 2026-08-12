@@ -16,7 +16,10 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile-chromium", use: { ...devices["iPhone 13"], browserName: "chromium" } },
+  ],
   webServer: {
     command: `pnpm exec next dev --port ${port}`,
     url: `http://127.0.0.1:${port}`,

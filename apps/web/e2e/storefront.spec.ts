@@ -15,7 +15,8 @@ test("visitor can discover products through the storefront search", async ({ pag
   await expect(page.getByRole("link", { name: /Kantha/i }).first()).toBeVisible();
 });
 
-test("public home has one primary heading and named navigation controls", async ({ page }) => {
+test("public home has one primary heading and named desktop navigation controls", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile-chromium", "Mobile navigation is covered by the dedicated responsive shopper journey.");
   await page.goto("/");
   await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.getByRole("navigation").getByRole("link", { name: /Shop/i })).toBeVisible();

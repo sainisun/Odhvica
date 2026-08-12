@@ -14,7 +14,7 @@ Phase 7 introduces a reproducible browser-level quality gate for the canonical O
 | `pnpm --filter web e2e` | Starts the local Next.js E2E server on port 3100 and runs Playwright Chromium tests. |
 | `pnpm --filter web quality` | Runs the full unit, integration, type, lint, E2E and production-build sequence. |
 
-Playwright retains a trace, screenshot and video on failure, and writes its HTML report under `apps/web/playwright-report/`. The report and test result artifacts are git-ignored operational output; they are not product assets.
+Playwright retains a trace, screenshot and video on failure, and writes its HTML report under `apps/web/playwright-report/`. The report and test result artifacts are git-ignored operational output; they are not product assets. GitHub Actions installs Playwright Chromium, runs the same suite after unit/type/lint checks, and retains Playwright failure artifacts for seven days only when the workflow fails.
 
 ## Current browser coverage
 
@@ -22,6 +22,7 @@ Playwright retains a trace, screenshot and video on failure, and writes its HTML
 |---|---|
 | Storefront discovery | The homepage has one primary heading; the shopper can reach `/shop`, use the accessible product search, observe an empty state, and recover to a matching product. |
 | Browser bag and checkout sandbox | A preview product can enter browser-local bag state, the checkout form can show sandbox payment review messaging, and the UI confirms that no payment page or charge is created. |
+| Mobile shopper flow | Mobile Chromium changes a non-default variant, carries it into the browser bag, enters checkout and confirms the sandbox no-charge message. |
 | Protected routes | Unauthenticated requests to account and staff routes do not return a successful protected page in the unprovisioned E2E environment. |
 | Accessibility smoke | Axe scans `main` on the public storefront and fails on serious or critical violations. |
 | Local performance guardrail | The public home navigation timing must remain below the intentionally generous 10-second local-development budget. This is a smoke guard, not a production Core Web Vitals measurement. |
@@ -43,3 +44,5 @@ The test server sets `ODHVICA_E2E=1`, disables Next telemetry, uses no `DATABASE
 ## Explicit limitations
 
 Playwright confirms that the local preview behaves safely; it does not certify real payment, tax, email, courier, auth, analytics or database operations. Those require the client’s verified external accounts, production configuration, lawful consent settings and a separate staging/UAT evidence run.
+
+`phase_7_staging_release_runbook.md` is the operational handoff for the staging rehearsal, go/no-go gate, rollback decision and production acceptance evidence.

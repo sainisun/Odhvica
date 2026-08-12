@@ -29,4 +29,16 @@ jobs:
       - run: pnpm test
       - run: pnpm check
       - run: pnpm lint
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
       - run: NODE_ENV=production pnpm build
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-artifacts
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

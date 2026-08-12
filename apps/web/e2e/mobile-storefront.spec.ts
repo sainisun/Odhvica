@@ -1,0 +1,34 @@
+import { expect, test } from "@playwright/test";
+import { startWithEmptyBrowserCart } from "./helpers";
+
+test("mobile visitor can select a variant and carry it into the browser bag", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "This responsive interaction is covered only in the mobile Chromium project.");
+  await startWithEmptyBrowserCart(page);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Made slowly. Worn often." })).toBeVisible();
+  await page.getByRole("link", { name: "Explore the edit" }).click();
+  await expect(page).toHaveURL(/\/shop$/);
+  await page.goto("/shop/kantha-edit-01");
+  await expect(page.locator("fieldset")).toBeVisible();
+  const variants = page.locator("fieldset").getByRole("button");
+  expect(await variants.count()).toBeGreaterThan(1);
+  const selected = variants.nth(1);
+  const title = (await selected.innerText()).trim();
+  await selected.click();
+  await expect(selected).toHaveAttribute("aria-pressed", "true");
+  const customisation = page.locator("textarea");
+  if (await customisation.count()) await customisation.fill("Mobile E2E detail");
+  await page.getByRole("button", { name: "Add to bag" }).click();
+  await page.getByRole("link", { name: /Bag 1/ }).click();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Continue to checkout" }).click();
+  await page.getByRole("textbox", { name: "Email" }).fill("mobile-e2e@example.test");
+  await page.getByRole("textbox", { name: "First and last name" }).fill("Mobile Test Customer");
+  await page.getByRole("textbox", { name: "Phone" }).fill("0000000000");
+  await page.getByRole("textbox", { name: "Address" }).fill("Mobile test address");
+  await page.getByRole("textbox", { name: "City" }).fill("Jaipur");
+  await page.getByRole("textbox", { name: "Postal code" }).fill("302001");
+  await page.getByRole("button", { name: "Review payment options" }).click();
+  await expect(page.getByRole("status")).toContainText("no payment page opens");
+  await expect(page.getByText("No charge will be created.")).toBeVisible();
+});
