@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | 21 |
 | Status | Approved security baseline; implementation controls and legal obligations require release-by-release validation |
-| Version | 0.1 |
+| Version | 0.2 |
 | Applies to | Odhvica master template and every independent client-store deployment |
 | Owner | Technical lead / security owner |
 | Last updated | 2026-08-12 |
@@ -30,7 +30,7 @@ Each client store is independently deployed and independently secured. The maste
 
 | Threat area | Example | Baseline control |
 |---|---|---|
-| Account takeover | Stolen/reused password, session theft, weak reset flow | Secure auth/session design, rate control, reset protections, optional MFA for staff/owner roles. |
+| Account takeover | Stolen/reused password, session theft, weak reset flow | Secure auth/session design, rate control, reset protections and mandatory 2FA/OTP for every admin-panel staff/owner login. |
 | Broken authorisation | Customer accesses another order; staff performs unauthorised refund | Server-side ownership/permission checks on every protected command. |
 | Checkout manipulation | Browser submits altered price, discount, stock or shipping amount | Server-side recalculation and validated checkout snapshot. |
 | Payment spoofing | Fake client success redirect or forged provider callback | Verified provider event/callback, idempotency and reconciliation. |
@@ -74,10 +74,10 @@ Staff/owner accounts have access to products, orders, customer data, provider se
 | Requirement | Baseline control |
 |---|---|
 | Role separation | Owner, finance, manager, fulfilment, content and support permissions remain separate. |
-| MFA | Plan MFA or equivalent stronger verification for owner/high-privilege staff before production maturity. |
+| 2FA/OTP | Mandatory for every admin-panel staff and owner login before any production use. The selected authentication flow must require a configured second factor or one-time-password verification after primary authentication and before admin session issuance. There is no role-based exemption. |
 | Invitation flow | Invitations are expiring, single-use, role-limited and auditable. |
 | Access revocation | Owner can revoke staff/developer access promptly; revoked sessions are invalidated. |
-| Sensitive action step-up | Refund, role change, secret/provider configuration, export and destructive actions require re-authentication/confirmation when appropriate. |
+| Sensitive action step-up | Refund, role change, secret/provider configuration, export and destructive actions require recent re-authentication/step-up confirmation; 2FA/OTP at login does not replace this control. |
 | Support access | Developer/support access is time-bound, least-privilege and explicitly authorised. |
 
 ## 6. Authorisation and Object Ownership
@@ -122,6 +122,12 @@ Every query that reads private objects must scope by the authorised relationship
 | Provider replay | Store verified provider event ID/reference and process duplicate safely as no-op. |
 | Sensitive payment data | Do not store raw payment card/bank credentials; use approved provider flow. |
 | Dispute/reconciliation | Restricted exception queue with provider/internal reference and auditable resolution. |
+
+### 8.1 PCI DSS Scope and Provider-Hosted Payment Requirement
+
+For Razorpay, Stripe and PayPal card-payment routes, Odhvica must use the provider’s current approved **provider-hosted payment page, redirect, hosted field or tokenised component flow** so that the Odhvica application does not collect, transmit, process or store raw cardholder data. Raw card number, CVV/CVC, magnetic-stripe/track data and sensitive authentication data must never enter Odhvica forms, logs, database records, analytics, support tools or application servers.
+
+This architecture is intended to minimise PCI DSS scope, but it does **not** itself guarantee PCI DSS compliance or SAQ-A eligibility. Each client merchant must validate its actual PCI DSS responsibilities, payment-page implementation, SAQ eligibility and any acquirer/provider requirements with its acquiring bank, payment provider and, where appropriate, a qualified PCI assessor. Any custom card form, embedded payment design, script change affecting payment pages, or new payment provider requires a PCI scope review before release.
 
 ## 9. File and Media Security
 
@@ -220,4 +226,4 @@ Odhvica is security-ready for a client release when client data/secrets are isol
 
 ## Related Documents
 
-`16_architecture_design.md` defines trust boundaries. `17_system_design.md` defines critical flows. `18_db_schema.md` defines data classification and audit entities. `19_api_contracts.md` and `20_integration_spec.md` define interface/provider rules. `26_testing_quality.md` and `27_devops_deployment.md` will define test and deployment execution details.
+`16_architecture_design.md` defines trust boundaries. `17_system_design.md` defines critical flows. `18_db_schema.md` defines data classification and audit entities. `19_api_contracts.md` and `20_integration_spec.md` define interface/provider rules. `26_testing_quality.md` and `27_devops_deployment.md` define test and deployment execution details. `28_legal_compliance.md` records merchant compliance responsibilities.

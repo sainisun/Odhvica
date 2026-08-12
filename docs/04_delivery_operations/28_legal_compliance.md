@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | 28 |
 | Status | Working compliance checklist; legal review required before any client production launch |
-| Version | 0.1 |
+| Version | 0.2 |
 | Applies to | Odhvica reference store and each independently deployed client store |
 | Owner | Client business owner for business/legal content; technical lead for implementation controls |
 | Last updated | 2026-08-12 |
@@ -16,6 +16,10 @@
 Odhvica is designed for international direct-to-consumer handmade-fashion sales. The application must make it possible for each client to publish accurate policies, obtain/manage permissions, protect customer data, present commercial terms, handle returns/refunds and support compliance processes. However, software cannot determine a client’s final legal obligations by itself.
 
 This document defines the legal/compliance implementation responsibilities and launch checks. It separates what the platform must technically support from what the client business owner must provide, approve and maintain.
+
+### 1.1 Applicable-Framework Assessment
+
+For an India-based Odhvica store, the **Digital Personal Data Protection Act, 2023 (DPDP Act)** is an explicit framework to assess for relevant digital personal-data processing. For international selling, the client must assess whether the **General Data Protection Regulation (GDPR), Regulation (EU) 2016/679**, applies to particular processing of personal data of people in the European Economic Area or other relevant territorial situations. Applicability, commencement/enforcement status, lawful basis, cross-border transfer approach, controller/processor roles and local obligations must be confirmed by qualified counsel for the client’s actual facts; the platform does not make that legal determination. [1] [2]
 
 ## 2. Responsibility Model
 
@@ -60,6 +64,19 @@ The platform must collect only the customer data necessary to sell, deliver, sup
 | Marketing consent | Optional marketing communication | Timestamp/source/policy version and preference state. |
 | Analytics/advertising event | Measure store/campaign use | Consent-aware loading, minimised event properties and no sensitive contents. |
 | Support/privacy request | Customer service/right request | Ownership verification, restricted access, request status/audit trail. |
+
+### 4.1 DPDP Act and GDPR Control Mapping
+
+The following map identifies the existing platform controls that support a client’s compliance assessment. It is an implementation mapping, not a conclusion that any deployment is legally compliant.
+
+| Privacy/consent area | Existing Odhvica controls | DPDP Act 2023 assessment mapping | GDPR assessment mapping |
+|---|---|---|---|
+| Notice and transparency | Versioned privacy notice, policy pages, customer-support/privacy contact route and purpose-linked data inventory in Sections 3–4. | Supports review of notice and purpose/consent communication for digital personal data. | Supports review of transparent privacy information and documented processing context. |
+| Purpose limitation and minimisation | Purpose-specific data categories, restricted customisation/upload fields, data minimisation and logging controls in Section 4. | Supports review that personal data is collected/used for stated business purposes. | Supports review of purpose limitation and data-minimisation obligations. |
+| Marketing/analytics consent | Timestamp, source, policy version, preference state, withdrawal flow and consent-aware script loading in Sections 4–5 and `14_seo_analytics.md`. | Supports review of consent/withdrawal records and downstream preference handling. | Supports review of consent conditions where consent is the chosen lawful basis; other lawful bases require separate client legal assessment. |
+| Customer rights/request handling | Privacy-request record, ownership verification, restricted access, request status/audit trail and export/delete/correction workflow support. | Supports handling and tracking of data-principal rights requests subject to final legal process. | Supports handling and tracking of data-subject access, rectification, erasure, restriction/objection and portability requests where applicable. |
+| Security and incident response | Role controls, encrypted backups, secure sessions, audit logs, incident process and provider controls in `21_security_blueprint.md`. | Supports assessment of reasonable security safeguards and breach-response obligations. | Supports assessment of appropriate security, processor controls and personal-data breach process. |
+| Retention, deletion and vendors/transfers | Retention/deletion configuration, backup policy, integration ownership, provider inventory and client-isolated storage. | Supports retention/erasure and processor/vendor assessment. | Supports storage limitation, processor/vendor terms and international-transfer assessment where applicable. |
 
 ## 5. Consent and Preference Management
 
@@ -169,4 +186,9 @@ A client store is compliance-ready from a product/technical perspective when it 
 
 ## Related Documents
 
-`05_commerce_rules.md` defines commercial behaviour. `12_content_model.md` governs policy/content publication. `14_seo_analytics.md` defines consent-aware measurement. `20_integration_spec.md`, `21_security_blueprint.md`, `26_testing_quality.md` and `27_devops_deployment.md` define technical controls. `30_client_presentation.md` will summarise client responsibilities in non-technical language.
+`05_commerce_rules.md` defines commercial behaviour. `12_content_model.md` governs policy/content publication. `14_seo_analytics.md` defines named consent-aware measurement tools. `20_integration_spec.md`, `21_security_blueprint.md`, `26_testing_quality.md` and `27_devops_deployment.md` define technical controls. `30_client_presentation.md` summarises client responsibilities in non-technical language.
+
+## References
+
+[1]: https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf "Digital Personal Data Protection Act, 2023 — MeitY"
+[2]: https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng "Regulation (EU) 2016/679 — GDPR, EUR-Lex"

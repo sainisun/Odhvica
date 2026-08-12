@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document type | Consolidated executive summary and master blueprint |
-| Scope | All 29 approved Odhvica project documents |
+| Scope | All 30 approved numbered Odhvica project documents, plus this consolidated master blueprint |
 | Product | Reusable, independently deployed e-commerce template for handmade-fashion brands |
 | Reference implementation | Odhvica |
 | Version | 1.0 |
@@ -20,7 +20,7 @@ Odhvica is **not** a multi-vendor marketplace, shared multi-tenant SaaS applicat
 
 The platform focuses on the requirements that matter most to handmade commerce: product storytelling, high-quality media, materials and care information, size/fit, unique or limited inventory, made-to-order lead time, personalisation, custom measurements, international selling, trusted checkout and accessible customer support. It is designed around a Next.js-first modular full-stack architecture, PostgreSQL data model, server-authoritative commerce rules, provider adapters for payments/shipping/messaging, and client-isolated deployment compatible with Hostinger VPS.
 
-The 29-document system is the project’s operational backbone. It turns the product from an idea into a buildable, testable, secure, deployable and reusable system. The documents are deliberately grouped into four layers: product foundation, storefront/UX, engineering/architecture, and delivery/operations. Together, they define what to build, how it should behave, how it should be structured, how it should be validated, and how it should later be delivered to clients.
+The 30-document system is the project’s operational backbone. It turns the product from an idea into a buildable, testable, secure, deployable and reusable system. The documents are deliberately grouped into four layers: product foundation, storefront/UX, engineering/architecture, and delivery/operations. Together, they define what to build, how it should behave, how it should be structured, how it should be validated, and how it should later be delivered to clients.
 
 ## 2. Business Model and Product Positioning
 
@@ -251,7 +251,7 @@ flowchart TB
 | Observe | Error/resource/provider/queue monitoring through a defined observation period. |
 | Close | Release record, client communication, known issue and update/rollback status. |
 
-## 9. The 29-Document Operating System
+## 9. The 30-Document Operating System
 
 ### 9.1 Document Groups
 
@@ -261,6 +261,7 @@ flowchart TB
 | Storefront and UX | 09–15 | Customer/admin UX, design system, content, catalogue, SEO/analytics and accessibility. |
 | Engineering and Architecture | 16–24 | Architecture, system flow, data, APIs, integrations, security, performance, code structure and reference implementation. |
 | Delivery and Operations | 25–29 | Code quality, testing, VPS operations, compliance checklist and phased implementation plan. |
+| Client Presentation | 30 | Plain-business client overview of delivered store, ownership, admin, support and client responsibilities. |
 
 ### 9.2 Complete Document Index
 
@@ -295,6 +296,7 @@ flowchart TB
 | 27 | `devops_deployment.md` | VPS deployment, backups, monitoring, rollout and rollback | 16, 20–22, 25–26 |
 | 28 | `legal_compliance.md` | Client policy/privacy/commerce/compliance launch checklist | 05, 12, 14, 20–21, 26–27 |
 | 29 | `implementation_plan.md` | Build phases, delivery gates, master hardening and client rollout | 01–28 |
+| 30 | `client_presentation.md` | Plain-business client overview of delivery, ownership, admin, support and responsibilities | 01–29 |
 
 ### 9.3 Document Dependency Map
 
@@ -428,4 +430,4 @@ The project should be judged by five outcomes:
 
 ## Related Documents
 
-This master blueprint summarises Documents `01_project_summary.md` through `29_implementation_plan.md`. The individual documents remain the authoritative detailed specifications for their respective areas.
+This master blueprint summarises Documents `01_project_summary.md` through `30_client_presentation.md`. The individual documents remain the authoritative detailed specifications for their respective areas.

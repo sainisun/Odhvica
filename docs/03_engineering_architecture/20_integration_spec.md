@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | 20 |
 | Status | Integration architecture approved; provider capabilities and payloads require current official-documentation verification before implementation |
-| Version | 0.1 |
+| Version | 0.2 |
 | Product | Odhvica reusable handmade-fashion e-commerce template |
 | Owner | Technical lead / integration owner |
 | Last updated | 2026-08-12 |
@@ -69,6 +69,21 @@ Payment routing must be deterministic and based on eligible checkout context. Cu
 | Alternative/manual payment | Future/client-specific only | Explicit scope, fraud/reconciliation/fulfilment policy and compliance review. |
 
 The frontend must never decide payment eligibility by itself. The checkout service requests an eligible-method list from server-side configuration and current checkout context.
+
+### 5.1.1 Authoritative Route-Detection and Fallback Algorithm
+
+The payment-routing service uses an explicit ordered ruleset stored in client configuration and versioned for audit. It receives the validated checkout shipping-address country, selected/configured currency, cart/order facts, active store region rules and current provider capability/health configuration. IP geolocation may suggest a pre-checkout country/currency only; it is not a payment-routing input and cannot override a validated shipping address.
+
+| Order | Server-side rule | Result |
+|---:|---|---|
+| 1 | Address is incomplete, invalid or not in an enabled shipping region. | Return no payment method; keep checkout in correction state. |
+| 2 | Shipping country is `IN`, checkout currency is INR, Razorpay is active and provider/store rules are eligible. | Return Razorpay as the primary eligible method. Stripe/PayPal remain hidden unless a distinct India rule has been explicitly approved and validated. |
+| 3 | Shipping country is not `IN`; Stripe is active and supports the configured country/currency/order conditions. | Return Stripe as the primary eligible international method. |
+| 4 | Shipping country is not `IN`; PayPal is active and supports the configured country/currency/order conditions. | Return PayPal as an additional customer-selectable option whenever eligible. |
+| 5 | Stripe is unavailable/ineligible but PayPal is eligible. | Return PayPal as the available international fallback. |
+| 6 | No configured provider is eligible, provider health is degraded, or capability data is missing/ambiguous. | Do not start payment or silently change currency/provider. Preserve the checkout, return a clear unavailable-payment message and present the approved support/manual-resolution route. |
+
+The service writes the routing-rule version, evaluated inputs, eligible methods, selected method, provider capability state and fallback reason to the checkout/payment-attempt audit context. Route evaluation may occur before a new payment attempt; after provider initiation the provider is immutable for that attempt. A customer may choose only among the eligible methods presented by the server.
 
 ### 5.2 Payment Lifecycle
 
@@ -223,4 +238,4 @@ An integration is acceptable only when it has a documented owner, eligible scope
 
 ## Related Documents
 
-`05_commerce_rules.md` defines commerce policy. `16_architecture_design.md`, `17_system_design.md` and `19_api_contracts.md` define system/adapters/contracts. `18_db_schema.md` defines integration/event records. `21_security_blueprint.md` defines control requirements. `27_devops_deployment.md` will define client environment and release procedure.
+`05_commerce_rules.md` defines commercial policy and the source payment-routing rules. `16_architecture_design.md`, `17_system_design.md` and `19_api_contracts.md` define system/adapters/contracts. `18_db_schema.md` defines integration/event records. `21_security_blueprint.md` defines control requirements. `27_devops_deployment.md` defines client environment and release procedure.

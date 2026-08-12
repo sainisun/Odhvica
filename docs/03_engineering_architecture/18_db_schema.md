@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | 18 |
 | Status | Approved conceptual schema; physical migrations and field types to follow implementation ADRs |
-| Version | 0.1 |
+| Version | 0.2 |
 | Database direction | PostgreSQL per independently deployed client store |
 | Owner | Technical lead / data owner |
 | Last updated | 2026-08-12 |
@@ -80,7 +80,7 @@ The diagram is conceptual. Join tables, lookup tables, explicit snapshots and hi
 
 | Table / entity | Key fields | Purpose |
 |---|---|---|
-| `stores` | id, display_name, legal_name, base_country, base_currency, status, timestamps | One local store identity/configuration record per isolated deployment. |
+| `stores` | id, display_name, legal_name, registered_address snapshot/configuration, base_country, base_currency, gst_registration_status optional, gstin optional, state_or_ut_code optional, status, timestamps | One local store identity/configuration record per isolated deployment; GST fields are used only when India tax invoicing is enabled and approved. |
 | `store_settings` | store_id, setting_key, structured_value, version, timestamps | Controlled non-secret application/store settings; secrets are referenced outside normal table content where possible. |
 | `users` | id, email, password/auth reference, status, last_login_at, timestamps | Shared identity record for customer/staff account types. |
 | `customer_profiles` | user_id, name fields, phone, marketing preferences reference, timestamps | Customer-facing account profile. |
@@ -100,8 +100,8 @@ Password hashes, authentication provider identifiers and sensitive security mate
 
 | Table / entity | Key fields | Notes |
 |---|---|---|
-| `products` | id, title, slug, product_type, status, short_description, description, base_price_amount, currency_code, sale fields, stock_mode, lead_time, publication fields | Product-level customer and commerce concept. |
-| `product_variants` | id, product_id, title/suffix, SKU, status, price_adjustment_amount, compare/reference price fields, option signature, shipping data, timestamps | Sellable option combination where relevant. |
+| `products` | id, title, slug, product_type, status, short_description, description, base_price_amount, currency_code, sale fields, stock_mode, lead_time, tax_code_type optional, tax_code optional, tax_rate_reference optional, publication fields | Product-level customer and commerce concept. `tax_code_type` is controlled as `HSN` for goods or `SAC` for services when India GST is enabled. |
+| `product_variants` | id, product_id, title/suffix, SKU, status, price_adjustment_amount, compare/reference price fields, option signature, shipping data, tax_code override optional, tax_rate_reference override optional, timestamps | Sellable option combination where relevant; tax classification overrides require approved client tax configuration. |
 | `product_options` | id, product_id, name, display_order | Defines selectable option dimensions, such as Size or Color. |
 | `product_option_values` | id, option_id, label, value/code, display_order, color metadata optional | Controlled selectable values. |
 | `variant_option_values` | variant_id, option_value_id | Maps variants to selected option combinations. |
@@ -176,7 +176,7 @@ Guest tokens and checkout identifiers must be opaque and protected. Customer add
 
 | Table / entity | Key fields | Purpose |
 |---|---|---|
-| `customers` | id, user_id optional, email, phone optional, status, first/last name, timestamps | Commerce customer record usable for guest/order relationship where permitted. |
+| `customers` | id, user_id optional, email, phone optional, legal_name optional, gstin optional, status, first/last name, timestamps | Commerce customer record usable for guest/order relationship where permitted. GSTIN is optional and collected only for enabled B2B tax-invoice requests. |
 | `customer_addresses` | id, customer_id, type, name, address lines, locality, region, postal code, country, phone, default flags, timestamps | Saved customer addresses. |
 | `customer_notes` | id, customer_id, note, visibility/author, timestamps | Restricted staff notes, not customer-facing. |
 | `wishlists` | id, customer_id, status, timestamps | Wishlist container. |
@@ -191,13 +191,24 @@ Guest tokens and checkout identifiers must be opaque and protected. Customer add
 
 | Table / entity | Key fields | Purpose |
 |---|---|---|
-| `orders` | id, public_order_number, customer_id optional, order_status, payment_status, fulfilment_status, currency, totals, snapshots, placed_at, timestamps | Core commercial order record. |
-| `order_items` | id, order_id, product/variant reference optional, product snapshot, SKU snapshot, quantity, unit/line monetary snapshots, fulfilment state | Immutable item-level purchase record. |
+| `orders` | id, public_order_number, customer_id optional, order_status, payment_status, fulfilment_status, currency, totals, tax summary snapshot, invoice reference optional, snapshots, placed_at, timestamps | Core commercial order record; tax summary preserves aggregate taxable value and CGST/SGST/UTGST/IGST amounts when enabled. |
+| `order_items` | id, order_id, product/variant reference optional, product snapshot, SKU snapshot, quantity, unit/line monetary snapshots, tax snapshot, fulfilment state | Immutable item-level purchase record; tax snapshot preserves HSN/SAC, taxable value, rate and CGST/SGST/UTGST/IGST amounts accepted at order time. |
 | `order_item_customizations` | order_item_id, field label/type/value/file reference snapshot, visibility | Preserves accepted customer input. |
 | `order_addresses` | order_id, address_type, immutable address snapshot | Billing/shipping snapshot independent of later customer-address changes. |
 | `order_discounts` | order_id, discount reference/code snapshot, amount, rule snapshot | Applied discount truth. |
 | `order_events` | order_id, event_type, payload summary, actor/system source, timestamp | Chronological domain timeline. |
 | `order_notes` | order_id, note, visibility, author, timestamps | Internal/customer-visible notes with controlled visibility. |
+
+### 12.1 India GST Tax and Invoice Entities
+
+| Table / entity | Key fields | Purpose |
+|---|---|---|
+| `tax_invoices` | id, order_id, invoice_number, invoice_series, fiscal_year, invoice_date, supplier legal/GSTIN/address snapshot, recipient legal/GSTIN/address snapshot optional, place_of_supply snapshot, currency, taxable_amount, cgst_amount, sgst_amount, utgst_amount, igst_amount, total_tax_amount, total_amount, issue/cancel/credit-note state, timestamps | Immutable tax-invoice record linked to the approved order. Invoice number/series is unique within the client-configured fiscal sequence. |
+| `tax_invoice_items` | id, tax_invoice_id, order_item_id, description snapshot, hsn_or_sac_code, quantity, unit/line taxable value, tax_rate snapshot, cgst_amount, sgst_amount, utgst_amount, igst_amount, total_amount | Immutable line-level GST invoice snapshot; keeps historic invoice data independent from later product/tax setting changes. |
+| `invoice_sequences` | id, document_type, fiscal_year, series/prefix, next_value, status, timestamps | Client-configured controlled sequence source for tax invoices, credit notes or other approved financial documents. |
+| `tax_configuration_versions` | id, effective_from/to, supplier registration reference, tax policy reference, status, approved_by, timestamps | Versioned internal configuration/audit reference; it does not determine legal correctness without client tax approval. |
+
+The physical implementation must enforce unique tax-invoice number/series/fiscal-year combinations and prevent issued invoice snapshots from being silently modified. Refund or cancellation handling must preserve the original invoice relationship and use a separately sequenced credit-note/cancellation process only when approved by the client’s tax workflow.
 
 ### 12.2 Payments
 
@@ -283,4 +294,4 @@ The schema is acceptable when it can model a full handmade product lifecycle—f
 
 ## Related Documents
 
-`13_catalog_model.md` defines catalogue business rules. `16_architecture_design.md` and `17_system_design.md` define system boundaries/flows. `19_api_contracts.md` maps data to interfaces. `20_integration_spec.md` and `21_security_blueprint.md` define provider/security data handling. `26_testing_quality.md` will define migration/data integrity testing.
+`05_commerce_rules.md` defines GST/tax-invoice and payment-route behaviour. `13_catalog_model.md` defines catalogue business rules. `16_architecture_design.md` and `17_system_design.md` define system boundaries/flows. `19_api_contracts.md` maps data to interfaces. `20_integration_spec.md` and `21_security_blueprint.md` define provider/security data handling. `26_testing_quality.md` will define migration/data integrity testing.

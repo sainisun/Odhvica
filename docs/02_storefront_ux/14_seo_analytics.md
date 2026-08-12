@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | 14 |
 | Status | Approved foundation; provider-level setup follows in Batch 3 |
-| Version | 0.1 |
+| Version | 0.2 |
 | Applies to | Odhvica reference store and future independently deployed client stores |
 | Owner | Product owner / growth lead |
 | Last updated | 2026-08-12 |
@@ -153,6 +153,16 @@ Analytics must be event-driven and intentionally defined. The event model should
 | `generate_lead` | Newsletter/approved lead consent submission | source/page context and consent state only |
 | `support_request` | Customer starts approved support path | request type and order context only where permitted |
 
+### 10.1 Initial Named Integration Set
+
+The initial supported integration set is deliberately limited to the following client-owned tools. The master template provides integration boundaries and consent controls; it does not include another client’s account, property, container, pixel or verification identifier.
+
+| Tool | Purpose | Required client configuration | Consent and data rule |
+|---|---|---|---|
+| Google Analytics 4 (GA4) | Storefront/funnel measurement using the event model in this document. | Client-owned GA4 property and Measurement ID; separate staging/test property where practical; authorised reporting access. | Load or emit only according to the approved regional consent configuration. Do not send addresses, payment data, customer-entered measurements, personalisation text, raw email/phone or private upload data as event properties. |
+| Meta Pixel | Consent-aware advertising measurement and remarketing event support. | Client-owned Pixel ID, approved advertising account/business ownership, configured event set and authorised access. | Do not initialise or transmit non-essential advertising data before the applicable consent state permits it. The first release uses browser-side standard events only; any server-side conversion integration requires separate privacy, hashing, deduplication and provider review. |
+| Google Search Console | Search indexing, sitemap/coverage monitoring and technical SEO diagnostics. | Client-owned verified Search Console property, verified domain ownership method and approved access roles. | Search Console is not a storefront behavioural-tracking script. Verification and account access must remain client-owned; sitemap, canonical and indexing data must not expose private/admin routes or customer data. |
+
 ## 11. Consent and Privacy Rules
 
 Analytics and advertising measurement must follow the final privacy/legal design. The template must support consent-aware loading/configuration and minimise collection of personal data. Customer-entered notes, measurements, contact fields, addresses, payment details, uploaded references and other sensitive data must never be treated as normal analytics event properties.
@@ -184,7 +194,7 @@ Metrics must include date range, currency/context, source, inclusion rules and k
 
 ## 13. Marketing Integration Governance
 
-Marketing integrations may include analytics, search-console verification, advertising pixels, email marketing, WhatsApp, reviews and product feeds. An integration must be added only after business need, consent impact, performance cost, data shared, owner, failure behaviour and removal procedure are known.
+The initial named integrations are Google Analytics 4 (GA4), Meta Pixel and Google Search Console. Other analytics, advertising pixels, email marketing, WhatsApp, reviews and product feeds remain optional integrations. An integration must be added only after business need, consent impact, performance cost, data shared, owner, failure behaviour and removal procedure are known.
 
 No client tracking account, audience, conversion ID, feed or private campaign data is included in the master repository or copied to another client project.
 
@@ -194,4 +204,4 @@ A release is acceptable when public pages have intentional indexation/metadata b
 
 ## Related Documents
 
-`09_storefront_ux.md` defines public journeys. `11_design_system.md` defines component and performance-aware presentation. `12_content_model.md` governs publishable content. `13_catalog_model.md` provides product data. `15_accessibility.md` defines inclusive public-page requirements. Later architecture, API, integration, security, performance, legal and testing documents will define provider-specific implementation.
+`09_storefront_ux.md` defines public journeys. `11_design_system.md` defines component and performance-aware presentation. `12_content_model.md` governs publishable content. `13_catalog_model.md` provides product data. `15_accessibility.md` defines inclusive public-page requirements. `20_integration_spec.md` defines provider boundaries. `28_legal_compliance.md` maps consent/privacy controls to applicable client obligations. Later architecture, API, security, performance and testing documents define implementation detail.

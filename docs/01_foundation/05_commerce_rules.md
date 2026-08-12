@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | 05 |
 | Status | Approved foundation; regional/provider detail pending later integration and legal review |
-| Version | 0.1 |
+| Version | 0.2 |
 | Product | Odhvica reusable handmade-fashion e-commerce template |
 | Owner | Product owner / technical lead |
 | Last updated | 2026-08-12 |
@@ -65,6 +65,22 @@ Each client store must maintain a clear base pricing strategy. The base product 
 | Price snapshot | Order records must preserve the price, discount, currency, tax and shipping values actually accepted at checkout. |
 | Manual price changes | After a confirmed order, manual adjustments require a defined approval, communication and audit path. |
 
+### 5.1 India GST and Tax-Invoice Data Rules
+
+India GST support must be enabled only for a client whose tax configuration has been reviewed and approved for the relevant supply. The platform does not determine tax registration, HSN/SAC selection, rate applicability, place of supply, e-invoicing applicability or filing obligations. It must, however, preserve the data required to produce a tax-invoice record after those client/tax decisions are configured.
+
+| GST data/rule | Required platform behaviour |
+|---|---|
+| Supplier registration | Store configuration records the legal business name, registered address, state/UT code, GSTIN and GST registration status used for the invoice context. |
+| Customer B2B details | Checkout/admin may collect a customer GSTIN, legal name and billing address only when the client enables a B2B tax-invoice request; customer GSTIN is optional for ordinary consumer checkout. |
+| Product classification | Each taxable product/variant configuration supports an HSN code for goods or SAC code for services, plus the client-approved tax rate/classification reference. |
+| Intra/inter-state decision | The tax service derives the configured tax treatment from the approved supplier registration/location and the validated supply/delivery/billing facts required by the selected tax policy. Browser IP geolocation is never a tax decision source. |
+| Tax components | The checkout and immutable order/line-item tax snapshots preserve taxable value, tax rate and separate CGST, SGST/UTGST and IGST amounts, with zero values where a component does not apply. |
+| Invoice numbering | A tax-invoice number is generated from a client-configured fiscal-year/series sequence, is unique and immutable once issued, and remains linked to its order/refund/credit-note history. Cancellation/credit-note sequencing follows the approved client tax process. |
+| Invoice output | Invoice rendering uses order-time supplier, recipient where provided, item classification, tax, currency and address snapshots; later product or configuration changes must not rewrite a historic invoice. |
+
+> **Validation boundary:** These fields and calculations provide an implementation-ready GST invoice data model. The client remains responsible for qualified tax review of GSTIN validity, HSN/SAC selection, rates, place-of-supply treatment, invoice wording/format, filing, e-invoice/e-way-bill obligations and jurisdiction-specific updates.
+
 ## 6. Promotions and Discounts
 
 Promotions must be explicit, testable and conflict-safe. The system must calculate eligibility before a customer is charged and save the applied promotion result with the order.
@@ -104,6 +120,19 @@ The checkout must be the authoritative place where the final purchase terms are 
 | Stripe | Supported international checkout path | Enable only for eligible market/payment configuration. |
 | PayPal | Supported international checkout path | Enable only for eligible market/payment configuration. |
 | Cash on delivery | Optional future/client setting | Must have explicit region, product, amount and operational eligibility rules before activation. |
+
+### 8.1 Deterministic Payment-Route Resolution
+
+Payment route resolution is performed only by the server after checkout validation. The authoritative inputs are: the enabled store routing rules, provider health/account configuration, validated shipping-address country, configured settlement/display currency, cart/order restrictions and provider-supported market/currency capabilities. IP-based geolocation may be used only to suggest an initial country/currency before checkout; it must never select a payment provider or override the customer's validated delivery address.
+
+| Resolution step | Required behaviour |
+|---:|---|
+| 1 | Validate the shipping address and derive the checkout delivery country/region. If the address is incomplete or invalid, return no final payment method and request correction. |
+| 2 | Load only active client routing rules and provider capability configuration for the derived delivery country, configured currency and cart/order conditions. |
+| 3 | For an India (`IN`) delivery with INR checkout where Razorpay is active and eligible, show Razorpay as the primary route. Stripe/PayPal are hidden for this route unless the client has explicitly configured and validated a separate India eligibility rule. |
+| 4 | For a non-India delivery, show Stripe as the primary route only when the provider is active and supports the checkout currency/market. Show PayPal as an additional customer-selected route only when its configured eligibility also passes. The customer may choose among simultaneously eligible displayed methods; the system does not silently switch provider after payment initiation. |
+| 5 | If Stripe is unavailable/ineligible for a non-India checkout but PayPal is eligible, show PayPal as the available fallback route. If neither is eligible, block payment initiation, preserve the cart/checkout state and show a clear unavailable-payment/support path. |
+| 6 | Persist the evaluated routing rule version, eligible methods, selected provider and eligibility/fallback reason in the checkout/payment-attempt audit context. Re-evaluate only before creating a new payment attempt; never change a provider for an existing attempt. |
 
 No order should enter fulfilment solely because the customer reached a success-looking browser page. The system must use the approved payment/order confirmation state from the provider/integration workflow. Pending, failed, cancelled, abandoned, duplicate and delayed confirmation cases need defined order and customer-notification behaviour.
 
@@ -182,4 +211,4 @@ The following must be finalised in the integration, legal, database, system-desi
 
 ## Related Documents
 
-`03_prd.md` lists functional requirements. `04_feature_scope.md` classifies features and modules. `06_reuse_model.md` defines how client-specific commercial rules remain separated from master rules. Later documents will turn these rules into system, database, API, security, integration, testing and deployment specifications.
+`03_prd.md` lists functional requirements. `04_feature_scope.md` classifies features and modules. `06_reuse_model.md` defines how client-specific commercial rules remain separated from master rules. `18_db_schema.md` defines GST/tax-invoice snapshots and related data entities. `20_integration_spec.md` defines provider routing/adapter implementation. Later documents turn these rules into system, API, security, testing and deployment specifications.

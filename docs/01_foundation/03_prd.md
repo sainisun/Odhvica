@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | 03 |
 | Status | Approved foundation; detailed acceptance criteria to evolve by release |
-| Version | 0.1 |
+| Version | 0.2 |
 | Product | Odhvica reusable handmade-fashion e-commerce template |
 | Primary implementation | Odhvica reference store |
 | Owner | Product owner / technical lead |
@@ -155,6 +155,8 @@ The core template must handle categories where product availability and customer
 | MA-05 | Capture newsletter/marketing consent and make the consent state available for compliant downstream use. | Must |
 | MA-06 | Support email and WhatsApp notification integrations subject to consent, provider capability and regional rules. | Should |
 | MA-07 | Support abandoned-cart recovery as a later release only after privacy, consent and delivery design are approved. | Later |
+
+> **Approved scope record:** The `Later` priority for MA-07 is a deliberate product-owner scope decision, not an omission. It may be promoted only through a documented change decision after privacy, consent, delivery, provider and test design are approved.
 
 ## 10. Quality Requirements
 
