@@ -47,3 +47,19 @@ export const customisationFieldSchema = z
 
 export type ProductDraft = z.infer<typeof productDraftSchema>;
 export type CustomisationField = z.infer<typeof customisationFieldSchema>;
+
+export const catalogueProductInputSchema = productDraftSchema.extend({
+  description: z.string().trim().max(6000).optional(),
+  materialSummary: z.string().trim().max(600).optional(),
+  careInstructions: z.string().trim().max(1200).optional(),
+  collectionSlugs: z.array(z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)).max(12).default([]),
+  sizes: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
+  skuPrefix: z.string().trim().regex(/^[A-Z0-9-]+$/).max(40).optional(),
+  initialOnHand: z.number().int().nonnegative().default(0),
+  media: z.array(z.object({ storageKey: z.string().trim().min(1).max(1024), altText: z.string().trim().max(240).optional(), isPrimary: z.boolean().default(false) })).max(20).default([]),
+  customisationLabel: z.string().trim().min(2).max(80).optional(),
+  customisationRequired: z.boolean().default(false),
+  publish: z.boolean().default(false),
+});
+
+export type CatalogueProductInput = z.infer<typeof catalogueProductInputSchema>;

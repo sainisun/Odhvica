@@ -2,14 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { ProductCard } from "@/components/product-card";
-import { collectionDetails, filterStorefrontProducts } from "@/lib/catalogue/storefront-data";
+import { collectionDetails, type StorefrontProduct } from "@/lib/catalogue/storefront-data";
 
 const filters = ["All", ...collectionDetails.map((collection) => collection.name)];
 
-export function ShopExplorer({ initialCollection = "All" }: { initialCollection?: string }) {
+export function ShopExplorer({ initialCollection = "All", products: catalogueProducts }: { initialCollection?: string; products: StorefrontProduct[] }) {
   const [query, setQuery] = useState("");
   const [collection, setCollection] = useState(filters.includes(initialCollection) ? initialCollection : "All");
-  const products = useMemo(() => filterStorefrontProducts(query, collection), [query, collection]);
+  const products = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return catalogueProducts.filter((product) => {
+      const matchesCollection = collection === "All" || product.collection === collection;
+      const searchText = `${product.title} ${product.collection} ${product.material} ${product.status}`.toLowerCase();
+      return matchesCollection && (!normalizedQuery || searchText.includes(normalizedQuery));
+    });
+  }, [catalogueProducts, collection, query]);
 
   return (
     <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8 lg:px-12">
