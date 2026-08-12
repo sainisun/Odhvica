@@ -4,9 +4,9 @@ export type StaffRole = (typeof staffRoles)[number];
 
 export const rolePermissions: Record<StaffRole, readonly string[]> = {
   owner: ["*"],
-  manager: ["catalogue:write", "inventory:read", "inventory:write", "orders:write", "customers:read", "promotions:write", "reports:read", "refunds:approve"],
-  fulfilment: ["orders:read", "orders:fulfil", "inventory:read", "inventory:write"],
-  content: ["catalogue:read", "content:write", "seo:write"],
+  manager: ["catalogue:write", "inventory:read", "inventory:write", "orders:write", "customers:read", "promotions:write", "reports:read", "refunds:approve", "reviews:moderate", "production:write"],
+  fulfilment: ["orders:read", "orders:fulfil", "inventory:read", "inventory:write", "production:write"],
+  content: ["catalogue:read", "content:write", "seo:write", "reviews:moderate"],
   support: ["orders:read", "customers:read", "returns:write"],
 };
 

@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { evaluateAbandonedCartCandidate } from "./abandoned-cart";
+describe("abandoned-cart policy", () => { const base = { cartId: "00000000-0000-4000-8000-000000000001", cartStatus: "active" as const, updatedAt: new Date("2026-08-12T10:00:00Z"), now: new Date("2026-08-12T12:00:00Z"), minimumIdleMinutes: 60 }; it("requires marketing opt-in before a sandbox queue candidate is eligible", () => { expect(evaluateAbandonedCartCandidate({ ...base, marketingEmail: false })).toEqual({ eligible: false, reason: "marketing_consent_missing" }); expect(evaluateAbandonedCartCandidate({ ...base, marketingEmail: true })).toEqual({ eligible: true, reason: "sandbox_ready", queueMode: "sandbox" }); }); });

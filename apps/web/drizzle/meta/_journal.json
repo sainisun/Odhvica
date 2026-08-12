@@ -43,6 +43,34 @@
       "when": 1786551922349,
       "tag": "0005_complete_unus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786553161143,
+      "tag": "0006_handy_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786553878888,
+      "tag": "0007_narrow_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786554194100,
+      "tag": "0008_complete_the_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786554831507,
+      "tag": "0009_spooky_wallop",
+      "breakpoints": true
     }
   ]
 }

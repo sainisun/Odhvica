@@ -37,6 +37,12 @@ export const notificationClassEnum = pgEnum("notification_class", ["transactiona
 export const notificationEventEnum = pgEnum("notification_event", ["order_confirmed", "payment_failed", "fulfilment_updated", "refund_approved", "staff_alert"]);
 export const notificationStatusEnum = pgEnum("notification_status", ["queued", "sandbox_delivered", "failed", "suppressed"]);
 export const notificationAttemptOutcomeEnum = pgEnum("notification_attempt_outcome", ["sandbox_delivered", "failed", "suppressed"]);
+export const privacyRequestTypeEnum = pgEnum("privacy_request_type", ["access", "erasure", "correction"]);
+export const privacyRequestStatusEnum = pgEnum("privacy_request_status", ["requested", "in_review", "completed", "rejected"]);
+export const reviewStatusEnum = pgEnum("review_status", ["pending", "approved", "rejected"]);
+export const productionStatusEnum = pgEnum("production_status", ["queued", "in_progress", "quality_review", "ready_to_ship", "cancelled"]);
+export const editorialContentTypeEnum = pgEnum("editorial_content_type", ["article", "lookbook"]);
+export const editorialStatusEnum = pgEnum("editorial_status", ["draft", "published", "archived"]);
 
 // Better Auth-compatible identity tables. These stay intentionally separate from
 // commerce data so customer identities and staff authorisation can evolve safely.
@@ -625,6 +631,126 @@ export const notificationDeliveryAttempts = pgTable(
     attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("notification_delivery_notification_idx").on(table.notificationId)],
+);
+
+export const privacyRequests = pgTable(
+  "privacy_request",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    type: privacyRequestTypeEnum("type").notNull(),
+    status: privacyRequestStatusEnum("status").notNull().default("requested"),
+    requesterEmailSnapshot: varchar("requester_email_snapshot", { length: 320 }).notNull(),
+    details: text("details"),
+    idempotencyKey: varchar("idempotency_key", { length: 128 }).notNull().unique(),
+    resolutionNote: text("resolution_note"),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [index("privacy_request_user_idx").on(table.userId), index("privacy_request_status_idx").on(table.status)],
+);
+
+export const wishlistItems = pgTable(
+  "wishlist_item",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    guestToken: varchar("guest_token", { length: 160 }),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("wishlist_owner_required", sql`${table.userId} IS NOT NULL OR ${table.guestToken} IS NOT NULL`), index("wishlist_user_idx").on(table.userId), index("wishlist_guest_idx").on(table.guestToken), index("wishlist_product_idx").on(table.productId)],
+);
+
+export const productReviews = pgTable(
+  "product_review",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    orderItemId: uuid("order_item_id").notNull().unique().references(() => orderItems.id, { onDelete: "cascade" }),
+    rating: integer("rating").notNull(),
+    title: varchar("title", { length: 120 }),
+    body: text("body").notNull(),
+    status: reviewStatusEnum("status").notNull().default("pending"),
+    moderationNote: text("moderation_note"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    moderatedAt: timestamp("moderated_at", { withTimezone: true }),
+    moderatedByUserId: text("moderated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  },
+  (table) => [check("product_review_rating_range", sql`${table.rating} >= 1 AND ${table.rating} <= 5`), index("product_review_product_status_idx").on(table.productId, table.status), index("product_review_user_idx").on(table.userId)],
+);
+
+export const productionJobs = pgTable(
+  "production_job",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    orderItemId: uuid("order_item_id").notNull().unique().references(() => orderItems.id, { onDelete: "cascade" }),
+    status: productionStatusEnum("status").notNull().default("queued"),
+    leadTimeMinDays: integer("lead_time_min_days"),
+    leadTimeMaxDays: integer("lead_time_max_days"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("production_job_lead_time_range", sql`${table.leadTimeMinDays} IS NULL OR ${table.leadTimeMaxDays} IS NULL OR ${table.leadTimeMinDays} <= ${table.leadTimeMaxDays}`), index("production_job_status_idx").on(table.status), index("production_job_order_idx").on(table.orderId)],
+);
+
+export const trackingUpdates = pgTable(
+  "tracking_update",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    carrier: varchar("carrier", { length: 120 }).notNull(),
+    trackingNumber: varchar("tracking_number", { length: 180 }).notNull(),
+    status: fulfilmentStatusEnum("status").notNull(),
+    providerEventId: varchar("provider_event_id", { length: 180 }).notNull().unique(),
+    payloadSnapshot: jsonb("payload_snapshot").notNull().default({}),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("tracking_update_order_idx").on(table.orderId), index("tracking_update_status_idx").on(table.status)],
+);
+
+export const editorialPages = pgTable(
+  "editorial_page",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    type: editorialContentTypeEnum("type").notNull(),
+    status: editorialStatusEnum("status").notNull().default("draft"),
+    slug: varchar("slug", { length: 180 }).notNull().unique(),
+    title: varchar("title", { length: 180 }).notNull(),
+    excerpt: text("excerpt"),
+    body: text("body").notNull(),
+    seoTitle: varchar("seo_title", { length: 180 }),
+    seoDescription: varchar("seo_description", { length: 320 }),
+    canonicalPath: varchar("canonical_path", { length: 260 }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("editorial_page_status_idx").on(table.status), index("editorial_page_type_idx").on(table.type)],
+);
+
+export const urlRedirects = pgTable(
+  "url_redirect",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sourcePath: varchar("source_path", { length: 260 }).notNull().unique(),
+    targetPath: varchar("target_path", { length: 260 }).notNull(),
+    statusCode: integer("status_code").notNull().default(301),
+    active: boolean("active").notNull().default(true),
+    createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("url_redirect_status_code", sql`${table.statusCode} IN (301, 302)`), index("url_redirect_active_idx").on(table.active)],
 );
 
 export const authSchema = {
