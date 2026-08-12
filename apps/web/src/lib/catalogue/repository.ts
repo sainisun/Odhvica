@@ -10,6 +10,9 @@ import {
 } from "@/lib/db/schema";
 import { storefrontProducts, type StorefrontProduct } from "./storefront-data";
 
+type CatalogueDatabase = ReturnType<typeof getDatabase>;
+type CatalogueReadOptions = { db?: CatalogueDatabase };
+
 export type PersistedProduct = StorefrontProduct & {
   id: string;
   variantOptions: Array<{ id: string; title: string; priceAdjustment: string }>;
@@ -74,9 +77,9 @@ function mapProduct(
   };
 }
 
-export async function listPublishedProducts(): Promise<PersistedProduct[]> {
-  if (!process.env.DATABASE_URL) return storefrontProducts.map((product, index) => ({ ...product, id: `preview-${index}`, variantOptions: product.sizes.map((title, sizeIndex) => ({ id: `${product.slug}-${sizeIndex}`, title, priceAdjustment: "0" })), collectionSlugs: [product.collection.toLowerCase().replaceAll(" ", "-")], databaseBacked: false }));
-  const db = getDatabase();
+export async function listPublishedProducts(options: CatalogueReadOptions = {}): Promise<PersistedProduct[]> {
+  if (!options.db && !process.env.DATABASE_URL) return storefrontProducts.map((product, index) => ({ ...product, id: `preview-${index}`, variantOptions: product.sizes.map((title, sizeIndex) => ({ id: `${product.slug}-${sizeIndex}`, title, priceAdjustment: "0" })), collectionSlugs: [product.collection.toLowerCase().replaceAll(" ", "-")], databaseBacked: false }));
+  const db = options.db ?? getDatabase();
   const activeProducts = await db.select().from(products).where(eq(products.status, "active")).orderBy(asc(products.createdAt));
   if (!activeProducts.length) return [];
   const ids = activeProducts.map((product) => product.id);
@@ -89,13 +92,13 @@ export async function listPublishedProducts(): Promise<PersistedProduct[]> {
   return activeProducts.map((product) => mapProduct(product, allMedia.find((media) => media.productId === product.id && media.isPrimary) ?? allMedia.find((media) => media.productId === product.id), allProductCollections.filter((collection) => collection.productId === product.id), allVariants.filter((variant) => variant.productId === product.id), allCustomisations.filter((field) => field.productId === product.id)));
 }
 
-export async function findPublishedProduct(slug: string) {
-  const productsForStore = await listPublishedProducts();
+export async function findPublishedProduct(slug: string, options: CatalogueReadOptions = {}) {
+  const productsForStore = await listPublishedProducts(options);
   return productsForStore.find((product) => product.slug === slug);
 }
 
-export async function listPublishedCollection(slug: string) {
-  const productsForStore = await listPublishedProducts();
+export async function listPublishedCollection(slug: string, options: CatalogueReadOptions = {}) {
+  const productsForStore = await listPublishedProducts(options);
   return productsForStore.filter((product) => product.collectionSlugs.includes(slug));
 }
 
