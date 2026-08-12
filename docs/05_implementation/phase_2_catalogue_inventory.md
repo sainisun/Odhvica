@@ -13,6 +13,7 @@ Phase 2 translates the approved handmade catalogue model into PostgreSQL entitie
 | Inventory | Tracked, one-of-a-kind, made-to-order and pre-order modes; on-hand/reserved values; backorder flag; low-stock threshold; immutable movement records and optimistic version number. |
 | Security | Only owner, manager and fulfilment roles may request an inventory adjustment; a non-empty audit reason is mandatory. Catalogue content writes are limited to owner, manager and content roles. |
 | Concurrency | Inventory writes use one database transaction, a conditional version match and an availability predicate. A stale competing write returns a conflict rather than overwriting current stock. |
+| Verification | An isolated PostgreSQL-compatible integration harness verifies allowed/denied catalogue writes, persisted audit records, stale-version rejection, reserved-stock protection and movement persistence. |
 
 ## Activation boundary
 

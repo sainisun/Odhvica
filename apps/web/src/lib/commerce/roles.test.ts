@@ -10,6 +10,10 @@ describe("staff permissions", () => {
     expect(can("fulfilment", "content:write")).toBe(false);
   });
 
+  it("allows managers to manage catalogue-adjacent inventory", () => {
+    expect(can("manager", "inventory:write")).toBe(true);
+  });
+
   it("requires a fresh second factor for sensitive actions", () => {
     expect(requiresStepUp("refunds:approve")).toBe(true);
     expect(requiresStepUp("orders:fulfil")).toBe(false);

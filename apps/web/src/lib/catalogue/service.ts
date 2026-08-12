@@ -5,6 +5,13 @@ import { auditEvents, inventoryItems, inventoryMovements, products } from "@/lib
 import { assertCatalogueWritePermission, assertInventoryWritePermission } from "./permissions";
 import { productDraftSchema, type ProductDraft } from "./validation";
 
+type CatalogueDatabase = ReturnType<typeof getDatabase>;
+
+type ServiceOptions = {
+  access?: StaffAccess;
+  db?: CatalogueDatabase;
+};
+
 export class InventoryConflictError extends Error {
   constructor() {
     super("Inventory changed before this adjustment could be applied. Refresh the record and try again.");
@@ -12,11 +19,11 @@ export class InventoryConflictError extends Error {
   }
 }
 
-export async function createCatalogueDraft(input: ProductDraft, access?: StaffAccess) {
-  const actor = access ?? (await requireStaffAccess("catalogue:write"));
+export async function createCatalogueDraft(input: ProductDraft, options: ServiceOptions = {}) {
+  const actor = options.access ?? (await requireStaffAccess("catalogue:write"));
   assertCatalogueWritePermission(actor.role);
   const draft = productDraftSchema.parse(input);
-  const db = getDatabase();
+  const db = options.db ?? getDatabase();
 
   const [product] = await db
     .insert(products)
@@ -53,8 +60,8 @@ export type AtomicInventoryAdjustment = {
   referenceId?: string;
 };
 
-export async function adjustInventoryAtomically(request: AtomicInventoryAdjustment, access?: StaffAccess) {
-  const actor = access ?? (await requireStaffAccess("inventory:write"));
+export async function adjustInventoryAtomically(request: AtomicInventoryAdjustment, options: ServiceOptions = {}) {
+  const actor = options.access ?? (await requireStaffAccess("inventory:write"));
   assertInventoryWritePermission(actor.role);
 
   if (!Number.isInteger(request.expectedVersion) || request.expectedVersion < 0) {
@@ -65,7 +72,7 @@ export async function adjustInventoryAtomically(request: AtomicInventoryAdjustme
     throw new Error("Inventory adjustment requires a non-zero quantity and audit reason.");
   }
 
-  const db = getDatabase();
+  const db = options.db ?? getDatabase();
 
   return db.transaction(async (tx) => {
     const [updated] = await tx
@@ -79,7 +86,7 @@ export async function adjustInventoryAtomically(request: AtomicInventoryAdjustme
         and(
           eq(inventoryItems.id, request.inventoryItemId),
           eq(inventoryItems.version, request.expectedVersion),
-          sql`${inventoryItems.allowBackorder} OR ${inventoryItems.onHand} + ${request.quantityDelta} >= ${inventoryItems.reserved}`,
+          sql`(${inventoryItems.allowBackorder} OR ${inventoryItems.onHand} + ${request.quantityDelta} >= ${inventoryItems.reserved})`,
         ),
       )
       .returning();
