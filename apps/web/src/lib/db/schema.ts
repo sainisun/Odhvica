@@ -308,6 +308,7 @@ export const inventoryItems = pgTable(
     reserved: integer("reserved").notNull().default(0),
     lowStockThreshold: integer("low_stock_threshold").notNull().default(2),
     allowBackorder: boolean("allow_backorder").notNull().default(false),
+    version: integer("version").notNull().default(0),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

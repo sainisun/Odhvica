@@ -1,0 +1,1 @@
+ALTER TABLE "inventory_item" ADD COLUMN "version" integer DEFAULT 0 NOT NULL;
