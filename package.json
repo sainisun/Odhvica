@@ -1,0 +1,13 @@
+{
+  "name": "odhvica",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "NODE_ENV=production pnpm --filter web build",
+    "check": "pnpm --filter web check",
+    "test": "pnpm --filter web test",
+    "lint": "pnpm --filter web lint"
+  }
+}
