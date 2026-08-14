@@ -14,12 +14,25 @@ This document defines the production architecture, environment contracts, and de
                                v
 +-------------------------------------------------------------+
 |                     Railway Backend                         |
-|  - Commerce API Routes (`/api/v1/*`)                        |
+|  - Express / Node API Service (`apps/backend`)              |
 |  - Better Auth + RBAC + Mandatory 2FA                      |
-|  - Checkout Engine, Order State Machine, Webhook Handlers   |
+|  - Catalogue API, Checkout Engine, Order State Machine      |
 +------------------------------+------------------------------+
                                | Drizzle ORM (SSL)
                                v
 +-------------------------------------------------------------+
 |                Managed PostgreSQL & S3 Storage              |
 +-------------------------------------------------------------+
+```
+
+## 2. Environment Variables Matrix
+
+### Railway Backend (`apps/backend`)
+- `PORT`: 4000
+- `DATABASE_URL`: PostgreSQL connection string with SSL
+- `ALLOWED_FRONTEND_ORIGIN`: Exact URL of Vercel frontend (e.g., `https://odhvica.vercel.app`)
+- `BETTER_AUTH_SECRET`: Secret signing key for auth tokens
+- `BETTER_AUTH_URL`: Railway backend public URL
+
+### Vercel Frontend (`apps/web`)
+- `NEXT_PUBLIC_API_BASE_URL`: Railway backend public URL (e.g., `https://api.odhvica.com`)
